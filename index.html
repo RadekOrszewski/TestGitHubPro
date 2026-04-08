@@ -341,17 +341,26 @@
       document.getElementById('file-name').textContent = file.name;
       const reader = new FileReader();
       if (file.name.toLowerCase().endsWith('.csv')) {
-        reader.onload = function (ev) {
-          try {
-            const raw = parseCSV(ev.target.result);
-            document.getElementById('loading-state').style.display = 'none';
-            document.getElementById('empty-state').style.display = 'none';
-            processData(raw);
-          } catch (err) {
-            alert('Unable to read file. Please ensure it is a valid XLSX or CSV file.\n\nDetails: ' + err.message);
-          }
+        const tryRead = (encoding, isFallback) => {
+          const r = new FileReader();
+          r.onload = function (ev) {
+            try {
+              const raw = parseCSV(ev.target.result);
+              const hasExpectedCol = raw.length > 0 && COL_DATE in raw[0];
+              if (!hasExpectedCol && !isFallback) {
+                tryRead('windows-1252', true);
+                return;
+              }
+              document.getElementById('loading-state').style.display = 'none';
+              document.getElementById('empty-state').style.display = 'none';
+              processData(raw);
+            } catch (err) {
+              alert('Unable to read file. Please ensure it is a valid XLSX or CSV file.\n\nDetails: ' + err.message);
+            }
+          };
+          r.readAsText(file, encoding);
         };
-        reader.readAsText(file, 'UTF-8');
+        tryRead('UTF-8', false);
       } else {
         reader.onload = function (ev) {
           try {
