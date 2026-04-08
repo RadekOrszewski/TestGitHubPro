@@ -131,6 +131,48 @@
       font-size: 0.85rem;
     }
 
+    /* Chart toolbar */
+    .chart-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .remove-hint {
+      font-size: 0.82rem;
+      color: #888;
+    }
+
+    .remove-hint span {
+      display: inline-block;
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-weight: 600;
+      font-size: 0.78rem;
+    }
+
+    #reset-btn {
+      display: none;
+      padding: 6px 14px;
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #reset-btn:hover { background: #e5e7eb; }
+
+    /* Crosshair cursor so users know they can click */
+    .chart-wrapper canvas { cursor: crosshair; }
+
     /* Empty state */
     #empty-state {
       text-align: center;
@@ -196,6 +238,10 @@
     </div>
 
     <div class="card">
+      <div class="chart-toolbar">
+        <p class="remove-hint">Click a point to remove it &nbsp;<span>✕</span></p>
+        <button id="reset-btn">↺ Reset removed points</button>
+      </div>
       <div class="chart-wrapper">
         <canvas id="chart"></canvas>
       </div>
@@ -222,6 +268,7 @@
 
     // ── State ─────────────────────────────────────────────────────────────────
     let allRows = [];
+    let originalRows = [];
     let activeFilters = new Set(SIZE_ORDER);
     let chartInstance = null;
 
@@ -301,6 +348,9 @@
         return;
       }
 
+      originalRows = allRows.slice();
+      document.getElementById('reset-btn').style.display = 'none';
+
       // Determine which sizes exist
       const foundSizes = [...new Set(allRows.map(r => r.size))].filter(s => SIZE_ORDER.includes(s));
       activeFilters = new Set(foundSizes);
@@ -350,6 +400,30 @@
       document.getElementById(id).addEventListener('change', renderChart);
     });
 
+    // ── Click-to-remove ───────────────────────────────────────────────────────
+    document.getElementById('chart').addEventListener('click', function (e) {
+      if (!chartInstance) return;
+      const points = chartInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+      if (!points.length) return;
+      const { datasetIndex, index } = points[0];
+      const point = chartInstance.data.datasets[datasetIndex].data[index];
+      if (!point || !point.rowRef) return; // ignore percentile lines
+      const row = point.rowRef;
+      const idx = allRows.indexOf(row);
+      if (idx !== -1) {
+        allRows.splice(idx, 1);
+        document.getElementById('reset-btn').style.display = 'inline-block';
+        renderChart();
+      }
+    });
+
+    // ── Reset removed points ──────────────────────────────────────────────────
+    document.getElementById('reset-btn').addEventListener('click', function () {
+      allRows = originalRows.slice();
+      this.style.display = 'none';
+      renderChart();
+    });
+
     // ── Statistics ────────────────────────────────────────────────────────────
     // Uses linear interpolation between ranks (R-7 / type 7 in statistical literature).
     function percentile(sorted, p) {
@@ -375,7 +449,7 @@
           label: size,
           data: visible
             .filter(r => r.size === size)
-            .map(r => ({ x: r.date.getTime(), y: r.leadTime, _meta: r })),
+            .map(r => ({ x: r.date.getTime(), y: r.leadTime, rowRef: r })),
           backgroundColor: SIZE_COLORS[size] + POINT_OPACITY,
           borderColor: SIZE_COLORS[size],
           borderWidth: 1.5,
@@ -459,7 +533,7 @@
             tooltip: {
               callbacks: {
                 label: function (ctx) {
-                  const meta = ctx.raw._meta;
+                  const meta = ctx.raw.rowRef;
                   if (!meta) return ctx.dataset.label;
                   const dateStr = meta.date.toLocaleDateString('pl-PL');
                   return [
