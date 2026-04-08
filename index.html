@@ -99,6 +99,22 @@
       cursor: pointer;
     }
 
+    .control-group select {
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.88rem;
+      color: #333;
+      background: #fff;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .control-group select:focus {
+      border-color: #4361ee;
+      box-shadow: 0 0 0 2px rgba(67,97,238,0.15);
+    }
+
     .dot {
       display: inline-block;
       width: 12px;
@@ -234,6 +250,18 @@
             </label>
           </div>
         </div>
+        <div class="control-group">
+          <h3>Time Window</h3>
+          <select id="months-back">
+            <option value="0" selected>All time</option>
+            <option value="3">Last 3 months</option>
+            <option value="6">Last 6 months</option>
+            <option value="9">Last 9 months</option>
+            <option value="12">Last 12 months</option>
+            <option value="18">Last 18 months</option>
+            <option value="24">Last 24 months</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -270,6 +298,7 @@
     let allRows = [];
     let originalRows = [];
     let activeFilters = new Set(SIZE_ORDER);
+    let monthsBack = 0;
     let chartInstance = null;
 
     // ── Auto-load bundled data ─────────────────────────────────────────────────
@@ -400,6 +429,12 @@
       document.getElementById(id).addEventListener('change', renderChart);
     });
 
+    // Time window listener
+    document.getElementById('months-back').addEventListener('change', function () {
+      monthsBack = +this.value;
+      renderChart();
+    });
+
     // ── Click-to-remove ───────────────────────────────────────────────────────
     document.getElementById('chart').addEventListener('click', function (e) {
       if (!chartInstance) return;
@@ -439,7 +474,18 @@
     const POINT_OPACITY = 'cc'; // 80% opacity in hex
 
     function renderChart() {
-      const visible = allRows.filter(r => activeFilters.has(r.size));
+      // Step 1: time-window filter
+      let timeFiltered;
+      if (monthsBack > 0) {
+        const maxDate = new Date(Math.max(...allRows.map(r => r.date.getTime())));
+        const cutoff = new Date(maxDate);
+        cutoff.setMonth(cutoff.getMonth() - monthsBack);
+        timeFiltered = allRows.filter(r => r.date >= cutoff);
+      } else {
+        timeFiltered = allRows;
+      }
+      // Step 2: size filter
+      const visible = timeFiltered.filter(r => activeFilters.has(r.size));
       const sortedLeadTimes = visible.map(r => r.leadTime).sort((a, b) => a - b);
 
       // Build scatter datasets per size
