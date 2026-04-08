@@ -131,6 +131,48 @@
       font-size: 0.85rem;
     }
 
+    /* Chart toolbar */
+    .chart-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .remove-hint {
+      font-size: 0.82rem;
+      color: #888;
+    }
+
+    .remove-hint span {
+      display: inline-block;
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-weight: 600;
+      font-size: 0.78rem;
+    }
+
+    #reset-btn {
+      display: none;
+      padding: 6px 14px;
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #reset-btn:hover { background: #e5e7eb; }
+
+    /* Crosshair cursor so users know they can click */
+    .chart-wrapper canvas { cursor: crosshair; }
+
     /* Empty state */
     #empty-state {
       text-align: center;
@@ -141,6 +183,13 @@
     #empty-state p { font-size: 1rem; }
 
     #dashboard { display: none; }
+
+    #loading-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+      font-size: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -157,7 +206,9 @@
     </div>
   </div>
 
-  <div id="empty-state" class="card">
+  <div id="loading-state" class="card">Loading data…</div>
+
+  <div id="empty-state" class="card" style="display:none">
     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
     <p>Upload an XLSX file to display the lead times scatterplot.</p>
   </div>
@@ -187,6 +238,10 @@
     </div>
 
     <div class="card">
+      <div class="chart-toolbar">
+        <p class="remove-hint">Click a point to remove it &nbsp;<span>✕</span></p>
+        <button id="reset-btn">↺ Reset removed points</button>
+      </div>
       <div class="chart-wrapper">
         <canvas id="chart"></canvas>
       </div>
@@ -196,6 +251,8 @@
 
   <script>
     // ── Config ────────────────────────────────────────────────────────────────
+    const DATA_FILE = 'Lead Times - 2024-25.xlsx';
+
     const SIZE_COLORS = {
       XS: '#22c55e',   // green
       S:  '#3b82f6',   // blue
@@ -211,8 +268,28 @@
 
     // ── State ─────────────────────────────────────────────────────────────────
     let allRows = [];
+    let originalRows = [];
     let activeFilters = new Set(SIZE_ORDER);
     let chartInstance = null;
+
+    // ── Auto-load bundled data ─────────────────────────────────────────────────
+    (async function autoLoad() {
+      try {
+        const resp = await fetch(DATA_FILE);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const buffer = await resp.arrayBuffer();
+        const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '' });
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('file-name').textContent = DATA_FILE;
+        processData(raw);
+      } catch (err) {
+        console.error('Failed to auto-load data file:', err);
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('empty-state').style.display = 'block';
+      }
+    })();
 
     // ── File upload ───────────────────────────────────────────────────────────
     document.getElementById('file-input').addEventListener('change', function (e) {
@@ -225,6 +302,8 @@
           const wb = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
           const ws = wb.Sheets[wb.SheetNames[0]];
           const raw = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '' });
+          document.getElementById('loading-state').style.display = 'none';
+          document.getElementById('empty-state').style.display = 'none';
           processData(raw);
         } catch (err) {
           alert('Unable to read file. Please ensure it is a valid XLSX file.\n\nDetails: ' + err.message);
@@ -268,6 +347,9 @@
         alert(`No valid rows found.\n\nExpected columns: ${colList}\n\nCheck that the first sheet contains these column headers and valid data values.`);
         return;
       }
+
+      originalRows = allRows.slice();
+      document.getElementById('reset-btn').style.display = 'none';
 
       // Determine which sizes exist
       const foundSizes = [...new Set(allRows.map(r => r.size))].filter(s => SIZE_ORDER.includes(s));
@@ -318,6 +400,30 @@
       document.getElementById(id).addEventListener('change', renderChart);
     });
 
+    // ── Click-to-remove ───────────────────────────────────────────────────────
+    document.getElementById('chart').addEventListener('click', function (e) {
+      if (!chartInstance) return;
+      const points = chartInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+      if (!points.length) return;
+      const { datasetIndex, index } = points[0];
+      const point = chartInstance.data.datasets[datasetIndex].data[index];
+      if (!point || !point.rowRef) return; // ignore percentile lines
+      const row = point.rowRef;
+      const idx = allRows.indexOf(row);
+      if (idx !== -1) {
+        allRows.splice(idx, 1);
+        document.getElementById('reset-btn').style.display = 'inline-block';
+        renderChart();
+      }
+    });
+
+    // ── Reset removed points ──────────────────────────────────────────────────
+    document.getElementById('reset-btn').addEventListener('click', function () {
+      allRows = originalRows.slice();
+      this.style.display = 'none';
+      renderChart();
+    });
+
     // ── Statistics ────────────────────────────────────────────────────────────
     // Uses linear interpolation between ranks (R-7 / type 7 in statistical literature).
     function percentile(sorted, p) {
@@ -343,7 +449,7 @@
           label: size,
           data: visible
             .filter(r => r.size === size)
-            .map(r => ({ x: r.date.getTime(), y: r.leadTime, _meta: r })),
+            .map(r => ({ x: r.date.getTime(), y: r.leadTime, rowRef: r })),
           backgroundColor: SIZE_COLORS[size] + POINT_OPACITY,
           borderColor: SIZE_COLORS[size],
           borderWidth: 1.5,
@@ -427,7 +533,7 @@
             tooltip: {
               callbacks: {
                 label: function (ctx) {
-                  const meta = ctx.raw._meta;
+                  const meta = ctx.raw.rowRef;
                   if (!meta) return ctx.dataset.label;
                   const dateStr = meta.date.toLocaleDateString('pl-PL');
                   return [
