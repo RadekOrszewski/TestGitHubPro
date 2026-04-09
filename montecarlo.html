@@ -7,7 +7,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
       background: #0d1117;
@@ -15,7 +14,6 @@
       min-height: 100vh;
       padding: 32px 24px 60px;
     }
-
     h1 {
       text-align: center;
       font-size: 1.9rem;
@@ -30,15 +28,13 @@
       font-size: 0.92rem;
       margin-bottom: 36px;
     }
-
-    /* ── Input panel ── */
     .panel {
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 12px;
       padding: 24px 28px;
-      max-width: 860px;
-      margin: 0 auto 32px;
+      max-width: 960px;
+      margin: 0 auto 28px;
     }
     .panel h2 {
       font-size: 1rem;
@@ -52,8 +48,9 @@
       grid-template-columns: 1fr 1fr;
       gap: 16px 28px;
     }
+    .input-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
     label { font-size: 0.85rem; color: #8b949e; display: block; margin-bottom: 4px; }
-    input[type=text], input[type=number] {
+    input[type=text], input[type=number], select {
       width: 100%;
       background: #0d1117;
       border: 1px solid #30363d;
@@ -62,7 +59,65 @@
       color: #e6edf3;
       font-size: 0.95rem;
     }
-    input:focus { outline: 2px solid #58a6ff; border-color: transparent; }
+    select option { background: #0d1117; }
+    input:focus, select:focus { outline: 2px solid #58a6ff; border-color: transparent; }
+
+    /* ── Slider ── */
+    .slider-row { display: flex; align-items: center; gap: 12px; }
+    input[type=range] {
+      flex: 1;
+      accent-color: #58a6ff;
+      background: transparent;
+      border: none;
+      padding: 0;
+    }
+    .slider-val {
+      min-width: 46px;
+      text-align: right;
+      font-weight: 600;
+      color: #e6edf3;
+      font-size: 0.95rem;
+    }
+
+    /* ── Focus toggle buttons ── */
+    .toggle-group { display: flex; gap: 8px; }
+    .toggle-btn {
+      flex: 1;
+      padding: 8px 0;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      background: #0d1117;
+      color: #8b949e;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-weight: 500;
+    }
+    .toggle-btn.active {
+      background: #1f6feb;
+      border-color: #58a6ff;
+      color: #fff;
+    }
+
+    /* ── Month capacity grid ── */
+    .month-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px 16px;
+    }
+    .month-item label { margin-bottom: 3px; }
+
+    /* ── Affected backlog banner ── */
+    .affected-bar {
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-top: 14px;
+      font-size: 0.87rem;
+      color: #8b949e;
+    }
+    .affected-bar span { color: #e3b341; font-weight: 700; }
 
     .btn-run {
       display: block;
@@ -84,7 +139,7 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
-      max-width: 860px;
+      max-width: 960px;
       margin: 0 auto 32px;
     }
     .kpi {
@@ -95,7 +150,7 @@
       text-align: center;
     }
     .kpi .label { font-size: 0.78rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
-    .kpi .value { font-size: 1.55rem; font-weight: 700; }
+    .kpi .value { font-size: 1.45rem; font-weight: 700; }
     .kpi.green  .value { color: #3fb950; }
     .kpi.yellow .value { color: #e3b341; }
     .kpi.red    .value { color: #f85149; }
@@ -106,7 +161,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px;
-      max-width: 860px;
+      max-width: 960px;
       margin: 0 auto 32px;
     }
     .chart-box {
@@ -119,7 +174,7 @@
 
     /* ── Percentile table ── */
     .table-wrap {
-      max-width: 860px;
+      max-width: 960px;
       margin: 0 auto 32px;
       background: #161b22;
       border: 1px solid #30363d;
@@ -135,8 +190,19 @@
     .highlight-row td { background: #1f2d1f; font-weight: 700; }
     .highlight-row85 td { background: #2d2a1f; font-weight: 700; }
 
-    /* ── Footer note ── */
     .footnote { text-align: center; font-size: 0.78rem; color: #484f58; margin-top: 12px; }
+
+    /* ── Assumption summary tags ── */
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; justify-content: center; }
+    .tag {
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.78rem;
+      color: #8b949e;
+    }
+    .tag b { color: #e6edf3; }
   </style>
 </head>
 <body>
@@ -144,9 +210,9 @@
 <h1>🎲 Monte Carlo Forecast Dashboard</h1>
 <p class="subtitle">Simulation-based delivery forecast using historical throughput data</p>
 
-<!-- Input Panel -->
+<!-- ═══════════════════════════════════════════════════════ PANEL 1 – Base Inputs -->
 <div class="panel">
-  <h2>Simulation Inputs</h2>
+  <h2>📋 Simulation Inputs</h2>
   <div class="input-grid">
     <div>
       <label>Backlog size (items)</label>
@@ -169,18 +235,59 @@
       <input type="text" id="throughput" value="5,4,4,5,6,4,2,3,2,5,6" />
     </div>
   </div>
-  <button class="btn-run" onclick="runSimulation()">▶ Run Simulation</button>
 </div>
 
-<!-- KPI Cards -->
+<!-- ═══════════════════════════════════════════════════════ PANEL 2 – Adjustments -->
+<div class="panel">
+  <h2>⚙️ Adjustments</h2>
+
+  <!-- Team Focus -->
+  <div style="margin-bottom: 22px;">
+    <label style="margin-bottom: 8px;">🎯 Team Focus — fraction of capacity dedicated to this backlog</label>
+    <div class="toggle-group" id="focusGroup">
+      <button class="toggle-btn" onclick="setFocus(25)">25%</button>
+      <button class="toggle-btn" onclick="setFocus(50)">50%</button>
+      <button class="toggle-btn" onclick="setFocus(75)">75%</button>
+      <button class="toggle-btn active" onclick="setFocus(100)">100%</button>
+    </div>
+    <div class="affected-bar" id="focusInfo">
+      At <span id="focusInfoPct">100%</span> focus the effective throughput is <span id="focusInfoRange">unchanged</span> from historical data.
+    </div>
+  </div>
+
+  <!-- Scope / Risk increase -->
+  <div style="margin-bottom: 22px;">
+    <label>📈 Risk / Scope Increase — extra items added to backlog (%)</label>
+    <div class="slider-row">
+      <input type="range" id="scopeRisk" min="0" max="100" step="10" value="0"
+             oninput="updateScopeLabel()" />
+      <span class="slider-val" id="scopeLabel">+0%</span>
+    </div>
+    <div class="affected-bar">
+      Effective backlog: <span id="effectiveBacklog">62</span> items
+      &nbsp;·&nbsp; Extra items added: <span id="extraItems">0</span>
+    </div>
+  </div>
+
+  <!-- Monthly capacity modifiers -->
+  <div>
+    <label style="margin-bottom: 10px;">📅 Monthly Capacity Modifiers — multiply throughput for each month (0.5 = half, 1 = normal, 1.5 = extra)</label>
+    <div class="month-grid" id="monthGrid"></div>
+  </div>
+</div>
+
+<!-- Assumption summary tags -->
+<div class="tags" id="assumptionTags"></div>
+
+<!-- ═══════════════════════════════════════════════════════ KPI Cards -->
 <div class="kpi-row" id="kpiRow">
   <div class="kpi green">
-    <div class="label">85% Confidence — All 62 items</div>
+    <div class="label">85% Confidence — finish backlog</div>
     <div class="value" id="kpi85">—</div>
     <div class="detail" id="kpi85detail"></div>
   </div>
   <div class="kpi red">
-    <div class="label">100% Confidence — All 62 items</div>
+    <div class="label">100% Confidence — finish backlog</div>
     <div class="value" id="kpi100">—</div>
     <div class="detail" id="kpi100detail"></div>
   </div>
@@ -191,10 +298,10 @@
   </div>
 </div>
 
-<!-- Charts -->
+<!-- ═══════════════════════════════════════════════════════ Charts -->
 <div class="charts-row">
   <div class="chart-box">
-    <h3>Completion Date Distribution (sprints to finish backlog)</h3>
+    <h3>Completion Date Distribution (sprints to finish)</h3>
     <canvas id="histChart"></canvas>
   </div>
   <div class="chart-box">
@@ -203,21 +310,33 @@
   </div>
 </div>
 
-<!-- Percentile Table -->
+<!-- ═══════════════════════════════════════════════════════ Percentile Table -->
 <div class="table-wrap">
   <h3>Confidence Percentile Table</h3>
   <table id="percentileTable">
     <thead>
-      <tr><th>Confidence</th><th>Sprints needed</th><th>Forecast date</th><th>Items by Aug 29</th></tr>
+      <tr>
+        <th>Confidence</th>
+        <th>Sprints needed</th>
+        <th>Forecast date</th>
+        <th>Items by Aug 31</th>
+      </tr>
     </thead>
     <tbody id="percentileBody"></tbody>
   </table>
 </div>
 
-<p class="footnote">Monte Carlo simulation · <span id="simCount">10 000</span> iterations · Sprint data: 5, 4, 4, 5, 6, 4, 2, 3, 2, 5, 6</p>
+<p class="footnote">Monte Carlo simulation · <span id="simCount">10 000</span> iterations</p>
 
 <script>
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+//  State
+// ─────────────────────────────────────────────────────────────────
+let focusPct = 100;         // 25 | 50 | 75 | 100
+
+// ─────────────────────────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────────────────────────
 function addWeeks(date, weeks) {
   const d = new Date(date);
   d.setDate(d.getDate() + weeks * 7);
@@ -227,44 +346,126 @@ function fmtDate(d) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 function sprintEndDate(startDate, sprintWeeks, sprintIndex) {
-  // sprintIndex is 1-based
   return addWeeks(startDate, sprintWeeks * sprintIndex);
 }
 
-// ── Simulation ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+//  Build month grid dynamically (12 months from startDate)
+// ─────────────────────────────────────────────────────────────────
+function buildMonthGrid() {
+  const startStr = document.getElementById('startDate').value || '2026-05-04';
+  const start    = new Date(startStr);
+  const grid     = document.getElementById('monthGrid');
+  grid.innerHTML = '';
+
+  for (let i = 0; i < 12; i++) {
+    const d   = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    const key = d.toISOString().slice(0, 7); // "YYYY-MM"
+    const lbl = d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+
+    const div = document.createElement('div');
+    div.className = 'month-item';
+    div.innerHTML = `
+      <label>${lbl}</label>
+      <select id="cap_${key}" onchange="updateScopeLabel()">
+        <option value="0.5">0.5× (half)</option>
+        <option value="1" selected>1× (normal)</option>
+        <option value="1.5">1.5× (extra)</option>
+      </select>`;
+    grid.appendChild(div);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Focus buttons
+// ─────────────────────────────────────────────────────────────────
+function setFocus(pct) {
+  focusPct = pct;
+  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('focusInfoPct').textContent = pct + '%';
+
+  const tpRaw = document.getElementById('throughput').value;
+  const tp    = tpRaw.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+  if (tp.length) {
+    const avg    = (tp.reduce((a,b)=>a+b,0)/tp.length * pct/100).toFixed(1);
+    const minV   = (Math.min(...tp) * pct/100).toFixed(1);
+    const maxV   = (Math.max(...tp) * pct/100).toFixed(1);
+    document.getElementById('focusInfoRange').textContent =
+      pct === 100 ? 'unchanged' : `${minV}–${maxV} items/sprint (avg ${avg})`;
+  }
+  updateScopeLabel();
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Scope slider
+// ─────────────────────────────────────────────────────────────────
+function updateScopeLabel() {
+  const pct      = parseInt(document.getElementById('scopeRisk').value);
+  const base     = parseInt(document.getElementById('backlogSize').value) || 62;
+  const extra    = Math.round(base * pct / 100);
+  const effective = base + extra;
+  document.getElementById('scopeLabel').textContent    = '+' + pct + '%';
+  document.getElementById('effectiveBacklog').textContent = effective;
+  document.getElementById('extraItems').textContent    = extra;
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Get capacity multiplier for a sprint (by its end date)
+// ─────────────────────────────────────────────────────────────────
+function getCapMultiplier(date) {
+  const key = date.toISOString().slice(0, 7);
+  const el  = document.getElementById('cap_' + key);
+  return el ? parseFloat(el.value) : 1;
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Chart refs
+// ─────────────────────────────────────────────────────────────────
 let histChartObj = null;
 let cdfChartObj  = null;
 
+// ─────────────────────────────────────────────────────────────────
+//  Main simulation
+// ─────────────────────────────────────────────────────────────────
 function runSimulation() {
-  // Read inputs
-  const backlog    = parseInt(document.getElementById('backlogSize').value) || 62;
-  const startStr   = document.getElementById('startDate').value || '2026-05-04';
-  const sprintWks  = parseInt(document.getElementById('sprintWeeks').value) || 2;
-  const numSims    = parseInt(document.getElementById('numSims').value) || 10000;
-  const tpRaw      = document.getElementById('throughput').value;
-  const tp         = tpRaw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 0);
+  const baseBacklog = parseInt(document.getElementById('backlogSize').value) || 62;
+  const scopePct    = parseInt(document.getElementById('scopeRisk').value) || 0;
+  const backlog     = baseBacklog + Math.round(baseBacklog * scopePct / 100);
 
-  if (tp.length === 0) { alert('Please enter valid throughput values.'); return; }
+  const startStr    = document.getElementById('startDate').value || '2026-05-04';
+  const sprintWks   = parseInt(document.getElementById('sprintWeeks').value) || 2;
+  const numSims     = parseInt(document.getElementById('numSims').value) || 10000;
+  const tpRaw       = document.getElementById('throughput').value;
+  const tpBase      = tpRaw.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n >= 0);
+
+  if (tpBase.length === 0) { alert('Please enter valid throughput values.'); return; }
 
   const startDate  = new Date(startStr);
-  const augEnd     = new Date('2026-08-31'); // end of August
+  const augEnd     = new Date('2026-08-31');
+  const focus      = focusPct / 100;
 
-  // Run Monte Carlo
-  const sprintCounts = []; // how many sprints each sim needed
-  const itemsByAug   = []; // how many items delivered by end of Aug in each sim
+  // ── Run Monte Carlo ──
+  const sprintCounts = [];
+  const itemsByAug   = [];
 
   for (let s = 0; s < numSims; s++) {
     let done = 0;
     let sprint = 0;
     let doneByAug = 0;
+
     while (done < backlog) {
       sprint++;
-      const velocity = tp[Math.floor(Math.random() * tp.length)];
+      const sprintEnd  = sprintEndDate(startDate, sprintWks, sprint);
+      const capMult    = getCapMultiplier(sprintEnd);
+      const rawVel     = tpBase[Math.floor(Math.random() * tpBase.length)];
+      const velocity   = Math.max(0, Math.round(rawVel * focus * capMult));
       done += velocity;
-      const sprintEnd = sprintEndDate(startDate, sprintWks, sprint);
       if (sprintEnd <= augEnd) {
         doneByAug = Math.min(done, backlog);
       }
+      // safety cap to prevent infinite loop if velocity = 0
+      if (sprint > 500) break;
     }
     sprintCounts.push(sprint);
     itemsByAug.push(doneByAug);
@@ -273,150 +474,133 @@ function runSimulation() {
   sprintCounts.sort((a, b) => a - b);
   itemsByAug.sort((a, b) => a - b);
 
-  // ── Percentiles ──
-  function percentileVal(arr, p) {
+  // ── Percentile helper ──
+  function pv(arr, p) {
     const idx = Math.ceil(p / 100 * arr.length) - 1;
     return arr[Math.max(0, idx)];
   }
+
   const percentiles = [50, 70, 75, 80, 85, 90, 95, 99, 100];
 
-  // ── Aug delivery percentiles (50th of itemsByAug) ──
-  const medItemsByAug = percentileVal(itemsByAug, 50);
-  const p85ItemsByAug = percentileVal(itemsByAug, 85);
+  const medItemsByAug = pv(itemsByAug, 50);
+  const p85ItemsByAug = pv(itemsByAug, 85);
+  const sprints85     = pv(sprintCounts, 85);
+  const sprints100    = pv(sprintCounts, 100);
+  const date85        = sprintEndDate(startDate, sprintWks, sprints85);
+  const date100       = sprintEndDate(startDate, sprintWks, sprints100);
 
   // ── KPI Cards ──
-  const sprints85  = percentileVal(sprintCounts, 85);
-  const sprints100 = percentileVal(sprintCounts, 100);
-  const date85     = sprintEndDate(startDate, sprintWks, sprints85);
-  const date100    = sprintEndDate(startDate, sprintWks, sprints100);
+  document.getElementById('kpi85').textContent        = fmtDate(date85);
+  document.getElementById('kpi85detail').textContent  = `${sprints85} sprints · 85% confidence`;
+  document.getElementById('kpi100').textContent       = fmtDate(date100);
+  document.getElementById('kpi100detail').textContent = `${sprints100} sprints · worst case`;
+  document.getElementById('kpiAug').textContent       = medItemsByAug + ' items';
+  document.getElementById('kpiAugDetail').textContent = `50th pct · 85th pct: ${p85ItemsByAug} items`;
+  document.getElementById('simCount').textContent     = numSims.toLocaleString();
 
-  document.getElementById('kpi85').textContent       = fmtDate(date85);
-  document.getElementById('kpi85detail').textContent = `${sprints85} sprints · 85% confidence`;
-  document.getElementById('kpi100').textContent      = fmtDate(date100);
-  document.getElementById('kpi100detail').textContent= `${sprints100} sprints · worst case`;
-  document.getElementById('kpiAug').textContent      = medItemsByAug + ' items';
-  document.getElementById('kpiAugDetail').textContent= `50th pct · 85th pct: ${p85ItemsByAug} items`;
-  document.getElementById('simCount').textContent    = numSims.toLocaleString();
+  // ── Assumption tags ──
+  const tags = document.getElementById('assumptionTags');
+  tags.innerHTML = `
+    <span class="tag">📋 Backlog: <b>${backlog}</b> items${scopePct>0?' (incl. +'+scopePct+'% scope risk)':''}</span>
+    <span class="tag">🎯 Focus: <b>${focusPct}%</b></span>
+    <span class="tag">📈 Scope risk: <b>+${scopePct}%</b> (+${backlog-baseBacklog} items)</span>
+    <span class="tag">🔁 Simulations: <b>${numSims.toLocaleString()}</b></span>
+    <span class="tag">📅 Sprint: <b>${sprintWks}w</b> from <b>${startStr}</b></span>
+  `;
 
-  // ── Histogram data ──
-  const maxSprints = percentileVal(sprintCounts, 100);
-  const minSprints = sprintCounts[0];
-  const buckets    = {};
-  for (let i = minSprints; i <= maxSprints; i++) buckets[i] = 0;
+  // ── Histogram ──
+  const maxSp = pv(sprintCounts, 100);
+  const minSp = sprintCounts[0];
+  const p50s  = pv(sprintCounts, 50);
+  const buckets = {};
+  for (let i = minSp; i <= maxSp; i++) buckets[i] = 0;
   sprintCounts.forEach(v => { if (buckets[v] !== undefined) buckets[v]++; });
   const histLabels = Object.keys(buckets).map(Number);
   const histData   = histLabels.map(k => +(buckets[k] / numSims * 100).toFixed(2));
-
-  // colour bars: green ≤ p50, yellow ≤ p85, red > p85
-  const p50s = percentileVal(sprintCounts, 50);
-  const barColors = histLabels.map(l => {
-    if (l <= p50s)    return 'rgba(63,185,80,0.75)';
-    if (l <= sprints85) return 'rgba(227,179,65,0.75)';
+  const barColors  = histLabels.map(l => {
+    if (l <= p50s)       return 'rgba(63,185,80,0.75)';
+    if (l <= sprints85)  return 'rgba(227,179,65,0.75)';
     return 'rgba(248,81,73,0.75)';
   });
 
-  // ── CDF data ──
+  // ── CDF ──
   const cdfData = histLabels.map(l => {
     const cnt = sprintCounts.filter(v => v <= l).length;
     return +(cnt / numSims * 100).toFixed(2);
   });
 
-  // ── Render / update charts ──
   if (histChartObj) histChartObj.destroy();
   if (cdfChartObj)  cdfChartObj.destroy();
 
   const histCtx = document.getElementById('histChart').getContext('2d');
-histChartObj = new Chart(histCtx, {
+  histChartObj = new Chart(histCtx, {
     type: 'bar',
     data: {
       labels: histLabels,
-      datasets: [{
-        label: '% of simulations',
-        data: histData,
-        backgroundColor: barColors,
-        borderRadius: 4
-      }]
+      datasets: [{ label: '% of simulations', data: histData, backgroundColor: barColors, borderRadius: 4 }]
     },
     options: {
       responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: ctx => `${ctx[0].label} sprints`,
-            label: ctx => `${ctx.raw}% of runs`
-          }
-        }
-      },
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        title: ctx => `${ctx[0].label} sprints`,
+        label: ctx => `${ctx.raw}% of runs`
+      }}},
       scales: {
         x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: 'Sprints to complete backlog', color: '#8b949e' } },
-        y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: '% of simulations', color: '#8b949e' } }
+        y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: '% of simulations', color: '#8b949e' }, min: 0, max: 100 }
       }
     }
   });
 
   const cdfCtx = document.getElementById('cdfChart').getContext('2d');
-cdfChartObj = new Chart(cdfCtx, {
+  cdfChartObj = new Chart(cdfCtx, {
     type: 'line',
     data: {
       labels: histLabels,
-      datasets: [{
-        label: 'Cumulative probability (%)',
-        data: cdfData,
-        borderColor: '#58a6ff',
-        backgroundColor: 'rgba(88,166,255,0.12)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 3,
-        pointBackgroundColor: '#58a6ff'
-      }]
+      datasets: [{ label: 'Cumulative probability (%)', data: cdfData, borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.12)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#58a6ff' }]
     },
     options: {
       responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: ctx => `${ctx[0].label} sprints`,
-            label: ctx => `${ctx.raw}% chance of finishing`
-          }
-        },
-        annotation: {}
-      },
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        title: ctx => `${ctx[0].label} sprints`,
+        label: ctx => `${ctx.raw}% chance of finishing`
+      }}},
       scales: {
         x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: 'Sprints', color: '#8b949e' } },
-        y: {
-          ticks: { color: '#8b949e', callback: v => v + '%' },
-          grid: { color: '#21262d' },
-          title: { display: true, text: 'Cumulative probability', color: '#8b949e' },
-          min: 0, max: 100
-        }
+        y: { ticks: { color: '#8b949e', callback: v => v + '%' }, grid: { color: '#21262d' }, title: { display: true, text: 'Cumulative probability', color: '#8b949e' }, min: 0, max: 100 }
       }
     }
   });
 
   // ── Percentile table ──
   const tbody = document.getElementById('percentileBody');
-tbody.innerHTML = '';
+  tbody.innerHTML = '';
   percentiles.forEach(p => {
-    const sp      = percentileVal(sprintCounts, p);
-    const dt      = sprintEndDate(startDate, sprintWks, sp);
-    const augItems = percentileVal(itemsByAug, p);
-    const tr      = document.createElement('tr');
+    const sp       = pv(sprintCounts, p);
+    const dt       = sprintEndDate(startDate, sprintWks, sp);
+    const augItems = pv(itemsByAug, p);
+    const tr       = document.createElement('tr');
     if (p === 100) tr.classList.add('highlight-row');
     if (p === 85)  tr.classList.add('highlight-row85');
-    tr.innerHTML = `
-      <td>${p}%</td>
-      <td>${sp}</td>
-      <td>${fmtDate(dt)}</td>
-      <td>${Math.min(augItems, backlog)}</td>
-    `;
+    tr.innerHTML = `<td>${p}%</td><td>${sp}</td><td>${fmtDate(dt)}</td><td>${Math.min(augItems, backlog)}</td>`;
     tbody.appendChild(tr);
   });
 }
 
-// Auto-run on load
-window.addEventListener('load', runSimulation);
+// ─────────────────────────────────────────────────────────────────
+//  Init
+// ─────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  buildMonthGrid();
+  updateScopeLabel();
+  runSimulation();
+});
 </script>
+
+<!-- Run button rendered outside the panel so it floats conveniently -->
+<div style="text-align:center; margin: -12px 0 32px;">
+  <button class="btn-run" onclick="runSimulation()">▶ Run Simulation</button>
+</div>
+
 </body>
 </html>
