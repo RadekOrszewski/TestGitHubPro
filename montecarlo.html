@@ -1,1 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monte Carlo Forecast Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      padding: 32px 24px 60px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: #58a6ff;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #8b949e;
+      font-size: 0.92rem;
+      margin-bottom: 36px;
+    }
+
+    /* ── Input panel ── */
+    .panel {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 24px 28px;
+      max-width: 860px;
+      margin: 0 auto 32px;
+    }
+    .panel h2 {
+      font-size: 1rem;
+      color: #58a6ff;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 28px;
+    }
+    label { font-size: 0.85rem; color: #8b949e; display: block; margin-bottom: 4px; }
+    input[type=text], input[type=number] {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #e6edf3;
+      font-size: 0.95rem;
+    }
+    input:focus { outline: 2px solid #58a6ff; border-color: transparent; }
+
+    .btn-run {
+      display: block;
+      margin: 22px auto 0;
+      padding: 11px 40px;
+      background: #238636;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-run:hover { background: #2ea043; }
+
+    /* ── KPI cards ── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 860px;
+      margin: 0 auto 32px;
+    }
+    .kpi {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 20px 22px;
+      text-align: center;
+    }
+    .kpi .label { font-size: 0.78rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .kpi .value { font-size: 1.55rem; font-weight: 700; }
+    .kpi.green  .value { color: #3fb950; }
+    .kpi.yellow .value { color: #e3b341; }
+    .kpi.red    .value { color: #f85149; }
+    .kpi .detail { font-size: 0.78rem; color: #8b949e; margin-top: 6px; }
+
+    /* ── Charts ── */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      max-width: 860px;
+      margin: 0 auto 32px;
+    }
+    .chart-box {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 20px 20px 16px;
+    }
+    .chart-box h3 { font-size: 0.85rem; color: #8b949e; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.8px; }
+
+    /* ── Percentile table ── */
+    .table-wrap {
+      max-width: 860px;
+      margin: 0 auto 32px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 20px 24px;
+      overflow-x: auto;
+    }
+    .table-wrap h3 { font-size: 0.85rem; color: #8b949e; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { color: #58a6ff; font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid #30363d; }
+    td { padding: 8px 12px; border-bottom: 1px solid #21262d; }
+    tr:last-child td { border-bottom: none; }
+    .highlight-row td { background: #1f2d1f; font-weight: 700; }
+    .highlight-row85 td { background: #2d2a1f; font-weight: 700; }
+
+    /* ── Footer note ── */
+    .footnote { text-align: center; font-size: 0.78rem; color: #484f58; margin-top: 12px; }
+  </style>
+</head>
+<body>
+
+<h1>🎲 Monte Carlo Forecast Dashboard</h1>
+<p class="subtitle">Simulation-based delivery forecast using historical throughput data</p>
+
+<!-- Input Panel -->
+<div class="panel">
+  <h2>Simulation Inputs</h2>
+  <div class="input-grid">
+    <div>
+      <label>Backlog size (items)</label>
+      <input type="number" id="backlogSize" value="62" min="1" />
+    </div>
+    <div>
+      <label>Sprint start date</label>
+      <input type="text" id="startDate" value="2026-05-04" />
+    </div>
+    <div>
+      <label>Sprint length (weeks)</label>
+      <input type="number" id="sprintWeeks" value="2" min="1" />
+    </div>
+    <div>
+      <label>Number of simulations</label>
+      <input type="number" id="numSims" value="10000" min="1000" max="100000" step="1000" />
+    </div>
+    <div style="grid-column: span 2;">
+      <label>Historical throughput per sprint (comma-separated)</label>
+      <input type="text" id="throughput" value="5,4,4,5,6,4,2,3,2,5,6" />
+    </div>
+  </div>
+  <button class="btn-run" onclick="runSimulation()">▶ Run Simulation</button>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-row" id="kpiRow">
+  <div class="kpi green">
+    <div class="label">85% Confidence — All 62 items</div>
+    <div class="value" id="kpi85">—</div>
+    <div class="detail" id="kpi85detail"></div>
+  </div>
+  <div class="kpi red">
+    <div class="label">100% Confidence — All 62 items</div>
+    <div class="value" id="kpi100">—</div>
+    <div class="detail" id="kpi100detail"></div>
+  </div>
+  <div class="kpi yellow">
+    <div class="label">Delivered by end of Aug 2026</div>
+    <div class="value" id="kpiAug">—</div>
+    <div class="detail" id="kpiAugDetail"></div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-row">
+  <div class="chart-box">
+    <h3>Completion Date Distribution (sprints to finish backlog)</h3>
+    <canvas id="histChart"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>Cumulative Probability of Completion</h3>
+    <canvas id="cdfChart"></canvas>
+  </div>
+</div>
+
+<!-- Percentile Table -->
+<div class="table-wrap">
+  <h3>Confidence Percentile Table</h3>
+  <table id="percentileTable">
+    <thead>
+      <tr><th>Confidence</th><th>Sprints needed</th><th>Forecast date</th><th>Items by Aug 29</th></tr>
+    </thead>
+    <tbody id="percentileBody"></tbody>
+  </table>
+</div>
+
+<p class="footnote">Monte Carlo simulation · <span id="simCount">10 000</span> iterations · Sprint data: 5, 4, 4, 5, 6, 4, 2, 3, 2, 5, 6</p>
+
+<script>
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function addWeeks(date, weeks) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + weeks * 7);
+  return d;
+}
+function fmtDate(d) {
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function sprintEndDate(startDate, sprintWeeks, sprintIndex) {
+  // sprintIndex is 1-based
+  return addWeeks(startDate, sprintWeeks * sprintIndex);
+}
+
+// ── Simulation ────────────────────────────────────────────────────────────────
+let histChartObj = null;
+let cdfChartObj  = null;
+
+function runSimulation() {
+  // Read inputs
+  const backlog    = parseInt(document.getElementById('backlogSize').value) || 62;
+  const startStr   = document.getElementById('startDate').value || '2026-05-04';
+  const sprintWks  = parseInt(document.getElementById('sprintWeeks').value) || 2;
+  const numSims    = parseInt(document.getElementById('numSims').value) || 10000;
+  const tpRaw      = document.getElementById('throughput').value;
+  const tp         = tpRaw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 0);
+
+  if (tp.length === 0) { alert('Please enter valid throughput values.'); return; }
+
+  const startDate  = new Date(startStr);
+  const augEnd     = new Date('2026-08-31'); // end of August
+
+  // Run Monte Carlo
+  const sprintCounts = []; // how many sprints each sim needed
+  const itemsByAug   = []; // how many items delivered by end of Aug in each sim
+
+  for (let s = 0; s < numSims; s++) {
+    let done = 0;
+    let sprint = 0;
+    let doneByAug = 0;
+    while (done < backlog) {
+      sprint++;
+      const velocity = tp[Math.floor(Math.random() * tp.length)];
+      done += velocity;
+      const sprintEnd = sprintEndDate(startDate, sprintWks, sprint);
+      if (sprintEnd <= augEnd) {
+        doneByAug = Math.min(done, backlog);
+      }
+    }
+    sprintCounts.push(sprint);
+    itemsByAug.push(doneByAug);
+  }
+
+  sprintCounts.sort((a, b) => a - b);
+  itemsByAug.sort((a, b) => a - b);
+
+  // ── Percentiles ──
+  function percentileVal(arr, p) {
+    const idx = Math.ceil(p / 100 * arr.length) - 1;
+    return arr[Math.max(0, idx)];
+  }
+  const percentiles = [50, 70, 75, 80, 85, 90, 95, 99, 100];
+
+  // ── Aug delivery percentiles (50th of itemsByAug) ──
+  const medItemsByAug = percentileVal(itemsByAug, 50);
+  const p85ItemsByAug = percentileVal(itemsByAug, 85);
+
+  // ── KPI Cards ──
+  const sprints85  = percentileVal(sprintCounts, 85);
+  const sprints100 = percentileVal(sprintCounts, 100);
+  const date85     = sprintEndDate(startDate, sprintWks, sprints85);
+  const date100    = sprintEndDate(startDate, sprintWks, sprints100);
+
+  document.getElementById('kpi85').textContent       = fmtDate(date85);
+  document.getElementById('kpi85detail').textContent = `${sprints85} sprints · 85% confidence`;
+  document.getElementById('kpi100').textContent      = fmtDate(date100);
+  document.getElementById('kpi100detail').textContent= `${sprints100} sprints · worst case`;
+  document.getElementById('kpiAug').textContent      = medItemsByAug + ' items';
+  document.getElementById('kpiAugDetail').textContent= `50th pct · 85th pct: ${p85ItemsByAug} items`;
+  document.getElementById('simCount').textContent    = numSims.toLocaleString();
+
+  // ── Histogram data ──
+  const maxSprints = percentileVal(sprintCounts, 100);
+  const minSprints = sprintCounts[0];
+  const buckets    = {};
+  for (let i = minSprints; i <= maxSprints; i++) buckets[i] = 0;
+  sprintCounts.forEach(v => { if (buckets[v] !== undefined) buckets[v]++; });
+  const histLabels = Object.keys(buckets).map(Number);
+  const histData   = histLabels.map(k => +(buckets[k] / numSims * 100).toFixed(2));
+
+  // colour bars: green ≤ p50, yellow ≤ p85, red > p85
+  const p50s = percentileVal(sprintCounts, 50);
+  const barColors = histLabels.map(l => {
+    if (l <= p50s)    return 'rgba(63,185,80,0.75)';
+    if (l <= sprints85) return 'rgba(227,179,65,0.75)';
+    return 'rgba(248,81,73,0.75)';
+  });
+
+  // ── CDF data ──
+  const cdfData = histLabels.map(l => {
+    const cnt = sprintCounts.filter(v => v <= l).length;
+    return +(cnt / numSims * 100).toFixed(2);
+  });
+
+  // ── Render / update charts ──
+  if (histChartObj) histChartObj.destroy();
+  if (cdfChartObj)  cdfChartObj.destroy();
+
+  const histCtx = document.getElementById('histChart').getContext('2d');
+histChartObj = new Chart(histCtx, {
+    type: 'bar',
+    data: {
+      labels: histLabels,
+      datasets: [{
+        label: '% of simulations',
+        data: histData,
+        backgroundColor: barColors,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: ctx => `${ctx[0].label} sprints`,
+            label: ctx => `${ctx.raw}% of runs`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: 'Sprints to complete backlog', color: '#8b949e' } },
+        y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: '% of simulations', color: '#8b949e' } }
+      }
+    }
+  });
+
+  const cdfCtx = document.getElementById('cdfChart').getContext('2d');
+cdfChartObj = new Chart(cdfCtx, {
+    type: 'line',
+    data: {
+      labels: histLabels,
+      datasets: [{
+        label: 'Cumulative probability (%)',
+        data: cdfData,
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88,166,255,0.12)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointBackgroundColor: '#58a6ff'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: ctx => `${ctx[0].label} sprints`,
+            label: ctx => `${ctx.raw}% chance of finishing`
+          }
+        },
+        annotation: {}
+      },
+      scales: {
+        x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: 'Sprints', color: '#8b949e' } },
+        y: {
+          ticks: { color: '#8b949e', callback: v => v + '%' },
+          grid: { color: '#21262d' },
+          title: { display: true, text: 'Cumulative probability', color: '#8b949e' },
+          min: 0, max: 100
+        }
+      }
+    }
+  });
+
+  // ── Percentile table ──
+  const tbody = document.getElementById('percentileBody');
+tbody.innerHTML = '';
+  percentiles.forEach(p => {
+    const sp      = percentileVal(sprintCounts, p);
+    const dt      = sprintEndDate(startDate, sprintWks, sp);
+    const augItems = percentileVal(itemsByAug, p);
+    const tr      = document.createElement('tr');
+    if (p === 100) tr.classList.add('highlight-row');
+    if (p === 85)  tr.classList.add('highlight-row85');
+    tr.innerHTML = `
+      <td>${p}%</td>
+      <td>${sp}</td>
+      <td>${fmtDate(dt)}</td>
+      <td>${Math.min(augItems, backlog)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Auto-run on load
+window.addEventListener('load', runSimulation);
+</script>
+</body>
+</html>
